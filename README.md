@@ -1,139 +1,136 @@
-# mcp-bio：AI 驱动的生信分析协作框架
+# mcp-bio: AI-Powered GEO Analysis Agent
 
-让 aisdk Agent 和 DeepSeek TUI 通过一块黑板协作，自动跑 GEO 差异分析。
+An AI agent built with [aisdk](https://github.com/YuLab-SMU/aisdk) that autonomously runs GEO differential expression analysis, collaborating with you through a shared board via MCP protocol.
 
-> **内外双循环**：Agent 是实干家（下载数据、跑 limma、画图），TUI 是兄长（派任务、看进度、卡住时给方向）。
+> **Dual-loop architecture**: The Agent is the worker (downloads data, runs limma, generates plots). You are the overseer (assign tasks, monitor progress, help when stuck).
 
-## 快速开始
+## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_USER/mcp-bio.git
+git clone https://github.com/zhiyuchen1101/mcp-bio.git
 cd mcp-bio
-bash setup.sh              # 一键安装 R/Python 依赖
-# 编辑 .env 填入你的 API Key
+bash setup.sh              # one-command install for R + Python deps
+# Edit .env with your API key
 ```
 
-启动 Watcher（Agent 后台进程）：
+Launch the Agent:
 
 ```r
-# 在项目根目录下运行
+# In the project root directory
 source("src/rstudio_watcher.R")
 ```
 
-然后打开 DeepSeek TUI，Agent 会自动等待任务。
+Keep this window running. Assign tasks through any MCP-compatible client (DeepSeek TUI, Claude Code, Codex).
 
-## 使用
-
-在 TUI 里派发一个分析任务：
+## Usage
 
 ```
-board_init: "分析 GSE1919 的 OA vs Normal 差异表达"
+board_init "Analyze GSE1919 OA vs Normal differential expression"
 ```
 
-Agent 会自动：
-1. 下载 GEO 数据
-2. 查看列名和分组分布（不会猜列名）
-3. log2 变换 + limma 差异分析
-4. 筛选 adj.P.Val < 0.05 且 |logFC| > 1 的 DEG
-5. Verifier 自动校验结果
-6. 遇到问题会通过 Board 求助
+The Agent will:
+1. Download GEO data
+2. Inspect column names and group distributions (never guesses column names)
+3. Log2-transform + limma analysis
+4. Filter DEGs (adj.P.Val < 0.05, |logFC| > 1)
+5. Auto-verify results with built-in Verifier
+6. Request help via the Board when stuck
 
-查看结果：
-
-```
-board_read_log       # 看实时进度
-board_optimize       # 任务完成后的优化建议
-r_get_variables      # 查看 R session 里的 DEG 变量
-```
-
-生成的图在 `plots/` 目录下。
-
-## MCP 工具一览
-
-| 工具 | 用途 |
-|------|------|
-| `board_init(task, context)` | 派发分析任务 |
-| `board_check_help` | 查看 Agent 求助 |
-| `board_respond(help_id, level, response)` | 回复 Agent 求助 |
-| `board_read_log` | 查看实时进度 |
-| `board_optimize` | 任务后优化建议 |
-| `r_execute(code)` | 直接在 R session 跑代码 |
-| `r_get_variables` | 列出 R 变量 |
-| `r_check_package(pkg)` | 检查 R 包 |
-| `r_plot_show(path)` | 打开图片 |
-| `bio_geo_meta(gse_id)` | 查看 GEO 元数据 |
-| `bio_quick_degs(gse_id, group, case, control)` | 快速 limma 分析 |
-| `r_start_watcher` / `r_watcher_status` / `r_stop_watcher` | 管理 Watcher 进程 |
-
-## 架构
+Monitor and assist:
 
 ```
-TUI (DeepSeek) ←→ Board (JSON) ←→ Watcher (R Agent)
-    ↓                                    ↓
-  Socket 19886 ←──────── 同步通道 ────→ httpuv
+board_read_log       # real-time progress
+board_check_help     # see if Agent needs help
+board_respond 1 L2 "Check columns with colnames()"   # give guidance
 ```
 
-- **Board**：异步协作协议。Agent 读任务、写进度、求助、汇报结果
-- **Socket**：同步通道。TUI 直接跑 R 代码查看 Agent 的数据
-- **Verifier**：自动校验 Agent 输出（错误率、DEG 统计、快照隔离）
+Results: plots in `plots/`, DEG data in R session variables.
 
-## 安装依赖
+## MCP Tools
 
-### R 包
+| Tool | Description |
+|------|-------------|
+| `board_init` | Assign analysis task |
+| `board_check_help` | Check pending help requests |
+| `board_respond` | Respond to Agent help request |
+| `board_read_log` | Read Agent execution log |
+| `board_optimize` | Post-task optimization hints |
+| `r_execute` | Execute R code in session |
+| `r_get_variables` | List R session variables |
+| `r_check_package` | Check R package installation |
+| `r_plot_show` | Open plot with Preview |
+| `bio_geo_meta` | Inspect GEO dataset metadata |
+| `bio_quick_degs` | Quick limma DEG analysis |
 
+## Architecture
+
+```
+You (MCP Client) ←→ Board (JSON) ←→ Watcher (R Agent)
+       ↓                                  ↓
+   Socket :19886 ←─── sync channel ───→ httpuv
+```
+
+- **Board**: Async collaboration protocol. Agent reads tasks, writes progress, requests help.
+- **Socket**: Sync channel. Run R code directly to inspect Agent's data.
+- **Verifier**: Auto-validates Agent output (error rate, DEG stats, snapshot isolation).
+
+## Dependencies
+
+### R
 ```r
 install.packages(c("dotenv", "jsonlite", "ggplot2", "ggsci", "ggrepel",
                    "httpuv", "httr", "GEOquery", "limma"),
                  repos = "https://cloud.r-project.org")
-
-# aisdk 在 r-universe
 install.packages("aisdk", repos = "https://yulab-smu.r-universe.dev")
 ```
 
-### Python 包
-
+### Python
 ```bash
 pip install -r requirements.txt
 ```
 
-## 配置
+## Configuration
 
-复制 `.env.example` 为 `.env`，填入你的 DeepSeek API Key：
+Copy `.env.example` to `.env`:
 
 ```bash
 OPENAI_API_KEY=sk-your-key
-OPENAI_BASE_URL=https://api.deepseek.com
-OPENAI_MODEL=deepseek-chat
+OPENAI_BASE_URL=https://api.deepseek.com    # or https://api.openai.com/v1
+OPENAI_MODEL=deepseek-chat                  # or gpt-4o
 ```
 
-## 项目结构
+## MCP Client Setup
 
-```
-src/
-├── board.py            # Board 状态机 (deep module)
-├── board_api.py        # Board HTTP API (薄壳路由)
-├── r_bridge.py         # R socket 客户端
-├── r_tools.py          # R 代码生成器
-├── r_process.py        # 子进程管理
-├── r_session_bridge.py # MCP 工具薄壳
-├── verifier.R          # Verifier 纯函数
-├── error_tracker.R     # ErrorTracker 纯函数
-└── rstudio_watcher.R   # Watcher 主文件
-tests/
-├── test_board.py       # Board 状态机测试
-├── test_r_tools.py     # R 代码合约测试
-├── test_r_bridge.py    # Socket 测试
-├── test_mcp_tools.py   # MCP 工具测试
-├── test_verifier.R     # Verifier 测试
-└── test_error_tracker.R# ErrorTracker 测试
+### DeepSeek TUI
+Auto-registered when the project is open.
+
+### Claude Code
+```json
+// .claude/mcp.json
+{
+  "mcpServers": {
+    "mcp-bio": {
+      "command": "python3",
+      "args": ["src/r_session_bridge.py"],
+      "cwd": "/path/to/mcp-bio"
+    }
+  }
+}
 ```
 
-## 开发原则
+### Codex
+```toml
+# .codex/config.toml
+[mcp_servers.mcp-bio]
+command = "python3 src/r_session_bridge.py"
+```
 
-- **Deep Module**：窄接口，深实现。Board 6 个方法管理全部状态
-- **薄壳不挟持逻辑**：board_api.py 是纯路由，参数提取在 Board 里
-- **纯函数模块**：Verifier 和 ErrorTracker 零 I/O，可独立测试
-- **协议版本化**：`_protocol_version: "1.0"` 写入 Board，防未来不兼容
+## Design Principles
+
+- **Deep Module**: Board manages 14 fields through 6 methods. Callers never touch JSON.
+- **Thin Shell**: `board_api.py` is pure routing — 4 endpoints, one-liners.
+- **Pure Functions**: Verifier and ErrorTracker are zero-I/O, independently testable.
+- **Protocol Versioning**: `_protocol_version: "1.0"` in Board JSON for future compatibility.
 
 ## License
 
