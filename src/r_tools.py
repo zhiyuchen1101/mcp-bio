@@ -79,3 +79,71 @@ assign("last_degs", degs, envir=.GlobalEnv)
 assign("last_gse_id", "{gse_id}", envir=.GlobalEnv)
 cat("\\nResults saved to 'last_degs' variable\\n")
 """
+
+
+def kegg_enrich_r() -> str:
+    """对当前 session 中的 DEG 结果做 KEGG/GO 富集分析"""
+    return """
+suppressPackageStartupMessages({
+  library(clusterProfiler)
+  library(org.Hs.eg.db)
+})
+
+# 取最近的 DEG 结果
+degs <- NULL
+for(vn in ls(envir=.GlobalEnv)) {
+  obj <- get(vn, envir=.GlobalEnv)
+  if(is.data.frame(obj) && "logFC" %in% colnames(obj) && "adj.P.Val" %in% colnames(obj)) {
+    degs <- obj
+    cat("Using DEGs from:", vn, "(", nrow(degs), "rows)\\n")
+    break
+  }
+}
+if(is.null(degs)) stop("No DEG data found in session. Run limma first.")
+
+# 筛选 |logFC|>1
+if("P.Value" %in% colnames(degs)) {
+  degs_filt <- degs[degs$adj.P.Val < 0.05 & abs(degs$logFC) > 1, ]
+} else {
+  degs_filt <- degs
+}
+cat("Filtered DEGs:", nrow(degs_filt), "(up:", sum(degs_filt$logFC>1), "down:", sum(degs_filt$logFC< -1), ")\\n")
+
+# 基因ID转换（尝试 SYMBOL → ENTREZID）
+probes <- rownames(degs_filt)
+entrez <- suppressMessages(bitr(probes, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db"))
+if(nrow(entrez) == 0) {
+  # 尝试获取平台注释
+  cat("Probe IDs detected, fetching platform annotation...\\n")
+  gse_id <- if(exists("last_gse_id")) get("last_gse_id") else NULL
+  if(!is.null(gse_id)) {
+    eset <- getGEO(gse_id, GSEMatrix=TRUE, getGPL=FALSE)[[1]]
+    gpl_id <- eset@annotation
+    gpl <- getGEO(gpl_id, destdir=tempdir())
+    gpl_table <- Table(gpl)
+    symbol_col <- grep("symbol|gene", colnames(gpl_table), ignore.case=TRUE, value=TRUE)[1]
+    if(!is.null(symbol_col)) {
+      mapped <- gpl_table[gpl_table$ID %in% probes, ]
+      symbols <- unique(mapped[[symbol_col]])
+      symbols <- symbols[!is.na(symbols) & symbols != ""]
+      entrez <- suppressMessages(bitr(symbols, fromType="SYMBOL", toType="ENTREZID", OrgDb="org.Hs.eg.db"))
+    }
+  }
+}
+cat("Entrez IDs:", nrow(entrez), "\\n\\n")
+
+# KEGG
+cat("=== KEGG Enrichment ===\\n")
+kk <- enrichKEGG(entrez$ENTREZID, organism="hsa", pvalueCutoff=0.05)
+cat(nrow(kk), "pathways enriched\\n\\n")
+if(nrow(kk) > 0) print(head(kk@result[,c("Description","p.adjust","Count")], 20))
+
+# GO
+cat("\\n=== GO BP (top 10) ===\\n")
+go_bp <- enrichGO(entrez$ENTREZID, OrgDb="org.Hs.eg.db", ont="BP", pvalueCutoff=0.05)
+if(nrow(go_bp) > 0) print(head(go_bp@result[,c("Description","p.adjust","Count")], 10))
+
+cat("\\nResults saved to: last_kegg, last_go\\n")
+assign("last_kegg", kk, envir=.GlobalEnv)
+assign("last_go", go_bp, envir=.GlobalEnv)
+"""

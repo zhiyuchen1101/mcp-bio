@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from mcp.server.fastmcp import FastMCP
 from r_bridge import RBridge
 from board import get_board
-from r_tools import get_variables_r, geo_meta_r, quick_degs_r
+from r_tools import get_variables_r, geo_meta_r, quick_degs_r, kegg_enrich_r
 from r_process import ensure_board_api, start_watcher, watcher_status, stop_watcher
 from config import R_SOCKET_PORT
 
@@ -111,6 +111,16 @@ def bio_quick_degs(gse_id: str, group_col: str, case: str, control: str) -> str:
     快速差异表达分析（limma），返回 up/down 基因数。
     """
     result = r_exec(quick_degs_r(gse_id, group_col, case, control), timeout=180)
+    return result["output"] or result.get("error", "(no output)")
+
+
+@mcp.tool()
+def bio_kegg_enrich() -> str:
+    """
+    KEGG/GO 富集分析。基于当前 session 中的 DEG 结果（需先跑 limma）。
+    自动处理探针ID→Entrez转换。结果存入 last_kegg / last_go 变量。
+    """
+    result = r_exec(kegg_enrich_r(), timeout=120)
     return result["output"] or result.get("error", "(no output)")
 
 
