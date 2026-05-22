@@ -24,7 +24,10 @@ class Board:
 
     def __init__(self, board_path: str = None):
         if board_path is None:
-            project_dir = os.environ.get("MCP_PROJECT_DIR", os.getcwd())
+            # 解析相对于 board.py 自身位置的项目根（不依赖 CWD）
+            _src_dir = os.path.dirname(os.path.abspath(__file__))
+            _proj_dir = os.path.dirname(_src_dir)
+            project_dir = os.environ.get("MCP_PROJECT_DIR", _proj_dir)
             board_path = os.path.join(project_dir, "task_board.json")
         self._board_path = board_path
         # ── 核心状态 ──
@@ -92,7 +95,7 @@ class Board:
             raise RuntimeError("Agent is running, cannot init new task")
 
         self._current_task = task
-        self._session_id = f"{task}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self._session_id = f"{task}_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
         self._context = context or {}
         self._status = "working"
         self._agent_status = "idle"

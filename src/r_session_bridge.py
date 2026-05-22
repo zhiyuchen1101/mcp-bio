@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from mcp.server.fastmcp import FastMCP
 from r_bridge import RBridge
 from board import get_board
-from r_tools import get_variables_r, geo_meta_r, quick_degs_r, kegg_enrich_r
+from r_tools import get_variables_r, geo_meta_r, quick_degs_r, auto_degs_r, gsea_r, kegg_enrich_r
 from r_process import ensure_board_api, start_watcher, watcher_status, stop_watcher
 from config import R_SOCKET_PORT
 
@@ -49,6 +49,12 @@ def r_exec(code: str, timeout: int = 120) -> dict:
 # ════════════════════════════════════════════
 # MCP Tools
 # ════════════════════════════════════════════
+
+# ═══ 工具分层 ═══
+# TUI 可直调（毫秒级）: board_*, r_get_variables, r_plot_show, r_watcher_*
+# Agent 专用（分钟级）: bio_auto_degs, bio_gsea, bio_kegg_enrich, r_execute
+# → 长工具走 Board dispatch（Watcher 异步执行），TUI 不直接调用
+
 
 @mcp.tool()
 def r_execute(code: str) -> str:
@@ -102,6 +108,26 @@ def r_plot_show(filepath: str) -> str:
 def bio_geo_meta(gse_id: str) -> str:
     """获取 GEO 数据集的基本信息（样本数、分组、表型列）。"""
     result = r_exec(geo_meta_r(gse_id), timeout=120)
+    return result["output"] or result.get("error", "(no output)")
+
+
+@mcp.tool()
+def bio_gsea(gene_set: str = "KEGG") -> str:
+    """
+    GSEA 基因集富集分析（全基因排序，不卡阈值）。
+    基于当前 session 中的 DEG 结果（需先跑 limma）。
+    """
+    result = r_exec(gsea_r(gene_set), timeout=300)
+    return result["output"] or result.get("error", "(no output)")
+
+
+@mcp.tool()
+def bio_auto_degs(gse_id: str, case: str = "", control: str = "") -> str:
+    """
+    一键差异表达：自动探测分组列 + 下载 GEO + limma。
+    case/control 可为空（自动找第一组 2-level 列）。
+    """
+    result = r_exec(auto_degs_r(gse_id, case, control), timeout=180)
     return result["output"] or result.get("error", "(no output)")
 
 
