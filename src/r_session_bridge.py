@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from mcp.server.fastmcp import FastMCP
 from r_bridge import RBridge
+from r_shell import r_exec_shell
 from board import get_board
 from r_tools import get_variables_r, geo_meta_r, quick_degs_r, auto_degs_r, gsea_r, kegg_enrich_r
 from r_process import ensure_board_api, start_watcher, watcher_status, stop_watcher
@@ -43,6 +44,19 @@ def r_exec(code: str, timeout: int = 120) -> dict:
         "output": result.get("output", ""),
         "error": result.get("error"),
         "session_alive": result.get("session_alive", True),
+    }
+
+
+def r_shell_exec(code: str, timeout: int = 300) -> dict:
+    """通过独立 Rscript 进程执行 R 代码——重操作专用。
+    不依赖 HTTP socket，不触发 502。
+    返回格式与 r_exec 兼容。
+    """
+    result = r_exec_shell(code, timeout=timeout, r_lib=R_LIB)
+    return {
+        "output": result.get("output", ""),
+        "error": result.get("error"),
+        "session_alive": True,  # 独立进程不维护 session 状态
     }
 
 
@@ -118,7 +132,7 @@ def bio_gsea(rank_by: str = "logFC") -> str:
     rank_by: "logFC" (两两比较, 默认) | "F" (ANOVA F-statistic 多组)
     基于当前 session 中的结果（需先跑 limma/ANOVA）。
     """
-    result = r_exec(gsea_r(rank_by), timeout=300)
+    result = r_shell_exec(gsea_r(rank_by), timeout=600)
     return result["output"] or result.get("error", "(no output)")
 
 
@@ -128,7 +142,7 @@ def bio_auto_degs(gse_id: str, case: str = "", control: str = "") -> str:
     一键差异表达：自动探测分组列 + 下载 GEO + limma。
     case/control 可为空（自动找第一组 2-level 列）。
     """
-    result = r_exec(auto_degs_r(gse_id, case, control), timeout=180)
+    result = r_shell_exec(auto_degs_r(gse_id, case, control), timeout=300)
     return result["output"] or result.get("error", "(no output)")
 
 
@@ -147,6 +161,7 @@ def bio_kegg_enrich() -> str:
     KEGG/GO 富集分析。基于当前 session 中的 DEG 结果（需先跑 limma）。
     自动处理探针ID→Entrez转换。结果存入 last_kegg / last_go 变量。
     """
+    # Note: 保留 socket —— 依赖 session 变量 (last_degs, last_gse_id)
     result = r_exec(kegg_enrich_r(), timeout=120)
     return result["output"] or result.get("error", "(no output)")
 
