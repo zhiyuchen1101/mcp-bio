@@ -121,8 +121,32 @@ cat("\\nResults saved to 'last_degs' variable\\n")
 """
 
 
-def gsea_r(gene_set: str = "KEGG") -> str:
-    """GSEA 基因集富集分析——全基因排序，不卡阈值。使用 session 中的 last_degs。"""
+def gsea_r(rank_by: str = "logFC") -> str:
+    """GSEA 富集分析——全基因排序，不卡阈值。
+    rank_by: "logFC" (两两比较) | "F" (ANOVA F-statistic 多组比较)
+    """
+    if rank_by == "F":
+        rank_code = """ranked <- NULL
+for(vn in ls(envir=.GlobalEnv)) {
+  obj <- get(vn, envir=.GlobalEnv)
+  if(is.list(obj) && !is.null(obj$F) && is.numeric(obj$F)) {
+    cat("Using F-statistic from:", vn, "\n")
+    ranked <- obj$F; names(ranked) <- rownames(obj$coefficients)
+    break
+  }
+}
+if(is.null(ranked)) stop("No MArrayLM object with $F found. Run eBayes() first.")"""
+    else:
+        rank_code = """degs <- NULL
+for(vn in ls(envir=.GlobalEnv)) {
+  obj <- get(vn, envir=.GlobalEnv)
+  if(is.data.frame(obj) && "logFC" %in% colnames(obj) && "adj.P.Val" %in% colnames(obj)) {
+    degs <- obj; cat("Using:", vn, "(", nrow(degs), "rows)\\n"); break
+  }
+}
+if(is.null(degs)) stop("No DEG found. Run limma first.")
+ranked <- degs$logFC; names(ranked) <- rownames(degs)"""
+
     return f"""
 suppressPackageStartupMessages({{
   library(clusterProfiler)
@@ -130,19 +154,8 @@ suppressPackageStartupMessages({{
   library(enrichplot)
 }})
 
-# 取 last_degs
-degs <- NULL
-for(vn in ls(envir=.GlobalEnv)) {{
-  obj <- get(vn, envir=.GlobalEnv)
-  if(is.data.frame(obj) && "logFC" %in% colnames(obj) && "adj.P.Val" %in% colnames(obj)) {{
-    degs <- obj; cat("Using:", vn, "(", nrow(degs), "rows)\\n"); break
-  }}
-}}
-if(is.null(degs)) stop("No DEG found. Run limma first.")
-
-# 全基因排序（不卡阈值！）
-ranked <- degs$logFC
-names(ranked) <- rownames(degs)
+# 取排序指标 (rank_by={rank_by})
+{rank_code}
 ranked <- sort(ranked, decreasing=TRUE)
 cat("Ranked genes:", length(ranked), "range:", round(range(ranked),2), "\\n")
 

@@ -112,12 +112,13 @@ def bio_geo_meta(gse_id: str) -> str:
 
 
 @mcp.tool()
-def bio_gsea(gene_set: str = "KEGG") -> str:
+def bio_gsea(rank_by: str = "logFC") -> str:
     """
     GSEA 基因集富集分析（全基因排序，不卡阈值）。
-    基于当前 session 中的 DEG 结果（需先跑 limma）。
+    rank_by: "logFC" (两两比较, 默认) | "F" (ANOVA F-statistic 多组)
+    基于当前 session 中的结果（需先跑 limma/ANOVA）。
     """
-    result = r_exec(gsea_r(gene_set), timeout=300)
+    result = r_exec(gsea_r(rank_by), timeout=300)
     return result["output"] or result.get("error", "(no output)")
 
 

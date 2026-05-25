@@ -1,3 +1,8 @@
+---
+name: deep-modules
+description: 简洁接口包裹深层实现——接口是「做什么」，实现是「怎么做」。降低认知负担。来源：Ousterhout《软件设计的哲学》。触发词：deep module、重构接口、降低认知负担。
+---
+
 # Deep Modules（深度模块）
 
 > 来源：John Ousterhout《软件设计的哲学》(2018)

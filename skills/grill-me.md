@@ -1,3 +1,8 @@
+---
+name: grill-me
+description: 对设计方案进行无情追问，沿决策树逐分支逼出清晰方案。触发词：grill me、拷问我、审查设计。
+---
+
 # Grill Me
 
 > 来源：Matt Pocock / mattpocock/skills

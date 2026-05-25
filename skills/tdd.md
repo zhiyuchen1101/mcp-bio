@@ -1,3 +1,8 @@
+---
+name: tdd
+description: 测试驱动开发，红-绿-重构循环，垂直切片而非水平切片，通过公共接口验证行为。触发词：tdd、red-green-refactor、先写测试。
+---
+
 # TDD 过程控制
 
 > 来源：Matt Pocock / mattpocock/skills (engineering/tdd)

@@ -1,3 +1,8 @@
+---
+name: ubiquitous-language
+description: 扫描对话提取领域术语，输出统一术语表（CONTEXT.md），消除歧义与同义词，建立项目唯一语言。触发词：统一语言、术语表、对术语、领域驱动设计。
+---
+
 # Ubiquitous Language
 
 > 来源：Eric Evans《领域驱动设计》第 2 章 (2003) / Matt Pocock

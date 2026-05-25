@@ -25,7 +25,7 @@ class RBridge:
             req = urllib.request.Request(
                 f"http://localhost:{self._connect_port}",
                 data=req_data,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "Connection": "close"},
             )
             resp = urllib.request.urlopen(req, timeout=timeout)
             resp_data = json.loads(resp.read().decode())

@@ -1,3 +1,8 @@
+---
+name: grill-with-docs
+description: 追问方案同时对齐 CONTEXT.md 术语与 ADR 决策记录，决策即文档。触发词：grill with docs、拷问并写文档、对齐上下文。
+---
+
 # Grill with Docs
 
 > 来源：Matt Pocock / mattpocock/skills (engineering/grill-with-docs)
